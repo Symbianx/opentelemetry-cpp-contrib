@@ -85,7 +85,7 @@ defmodule InstrumentationTest do
     [il_spans] = resource_spans["instrumentationLibrarySpans"]
     il_spans["spans"]
   end
-  
+
   def values(map) do
     Enum.map(map, fn {k, v} ->
       case k do
@@ -489,5 +489,34 @@ defmodule InstrumentationTest do
     {_, header_span_id} = Enum.find(headers, fn {k, _} -> k == "Span-Id" end)
     assert header_span_id == span["spanId"]
     assert status == 200
+  end
+
+  test "Accessing 301 redirect", %{
+    trace_file: trace_file
+  } do
+    %HTTPoison.Response{status_code: status, headers: headers} =
+      HTTPoison.get!("#{@host}/redirect_301")
+
+    {_, header_location} = Enum.find(headers, fn {k, _} -> k == "Location" end)
+    assert header_location == "http://#{@host}/redirect_301/"
+
+    [trace] = read_traces(trace_file, 1)
+    [span] = collect_spans(trace)
+    {_, header_trace_id} = Enum.find(headers, fn {k, _} -> k == "Trace-Id" end)
+    assert header_trace_id == span["traceId"]
+    assert status == 301
+  end
+
+  test "Accessing internal request", %{
+    trace_file: trace_file
+  } do
+    %HTTPoison.Response{status_code: status, headers: headers} =
+      HTTPoison.get!("#{@host}/internal_request")
+
+    [trace] = read_traces(trace_file, 1)
+    [span] = collect_spans(trace)
+    {_, header_trace_id} = Enum.find(headers, fn {k, _} -> k == "Trace-Id" end)
+    assert header_trace_id == span["traceId"]
+    assert status == 301
   end
 end
