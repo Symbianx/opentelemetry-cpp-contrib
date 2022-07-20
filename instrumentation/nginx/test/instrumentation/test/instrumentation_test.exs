@@ -491,32 +491,32 @@ defmodule InstrumentationTest do
     assert status == 200
   end
 
-  test "Accessing 301 redirect", %{
+  test "Accessing 301 redirect does not crash", %{
     trace_file: trace_file
   } do
     %HTTPoison.Response{status_code: status, headers: headers} =
-      HTTPoison.get!("#{@host}/redirect_301")
+      HTTPoison.get!(
+        "#{@host}/redirect_301",
+        [],
+        follow_redirect: false
+      )
+
+    assert status == 301
 
     {_, header_location} = Enum.find(headers, fn {k, _} -> k == "Location" end)
     assert header_location == "http://#{@host}/redirect_301/"
-
-    [trace] = read_traces(trace_file, 1)
-    [span] = collect_spans(trace)
-    {_, header_trace_id} = Enum.find(headers, fn {k, _} -> k == "Trace-Id" end)
-    assert header_trace_id == span["traceId"]
-    assert status == 301
   end
 
-  test "Accessing internal request", %{
+  test "Accessing internal request does not crash", %{
     trace_file: trace_file
   } do
     %HTTPoison.Response{status_code: status, headers: headers} =
-      HTTPoison.get!("#{@host}/internal_request")
+      HTTPoison.get!("#{@host}/route_to_internal")
 
     [trace] = read_traces(trace_file, 1)
     [span] = collect_spans(trace)
     {_, header_trace_id} = Enum.find(headers, fn {k, _} -> k == "Trace-Id" end)
     assert header_trace_id == span["traceId"]
-    assert status == 301
+    assert status == 200
   end
 end

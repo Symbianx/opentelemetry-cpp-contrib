@@ -195,7 +195,7 @@ static ngx_pool_cleanup_t* FindTraceContextCleanup(ngx_http_request_t* req) {
 
 TraceContext* GetTraceContext(ngx_http_request_t* req) {
   auto context = (TraceContext*)ngx_http_get_module_ctx(req, otel_ngx_module);
-  if (context != nullptr || !req->internal) {
+  if (context != nullptr) {
     return context;
   }
 
@@ -420,6 +420,10 @@ ngx_int_t StartNgxSpan(ngx_http_request_t* req) {
   if (!IsOtelEnabled(req)) {
     return NGX_DECLINED;
   }
+  // Internal requests must be called from another other location that already have traces. This would generate a new trace without new information
+  if (req->internal) {
+    return NGX_DECLINED;
+  }
 
   TraceContext* context = CreateTraceContext(req);
 
@@ -542,7 +546,7 @@ static ngx_int_t InitModule(ngx_conf_t* conf) {
   };
 
   const PhaseHandler handlers[] = {
-    {NGX_HTTP_SERVER_REWRITE_PHASE, StartNgxSpan},
+    {NGX_HTTP_REWRITE_PHASE, StartNgxSpan},
     {NGX_HTTP_LOG_PHASE, FinishNgxSpan},
   };
 
